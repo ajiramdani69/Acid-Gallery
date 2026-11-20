@@ -4,6 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="theme-color" content="#101827">
+<link rel="manifest" href="./manifest.webmanifest">
 <title>Acid Gallery</title>
 <script src="https://accounts.google.com/gsi/client" async defer></script>
 <style>
@@ -398,4 +399,5 @@ async function resetBackground(){
 applySavedBackground();
 
 </script>
+<script>if ("serviceWorker" in navigator) { window.addEventListener("load", () => navigator.serviceWorker.register("./sw.js").catch(err => console.warn("Service worker gagal didaftarkan", err))); }</script>
 </body></html>
