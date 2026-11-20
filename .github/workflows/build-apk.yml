@@ -43,8 +43,9 @@ jobs:
 
       - name: Show debug SHA-1
         run: |
-          keytool -list -v -keystore ~/.android/debug.keystore -storepass android -alias androiddebugkey | grep SHA1
-
+          APKSIGNER=$(find "$ANDROID_HOME/build-tools" -name apksigner | sort -V | tail -n 1)
+          "$APKSIGNER" verify --print-certs android/app/build/outputs/apk/debug/app-debug.apk
+          
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
