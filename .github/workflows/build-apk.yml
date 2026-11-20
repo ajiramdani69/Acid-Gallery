@@ -11,7 +11,6 @@ permissions:
 jobs:
   build-apk:
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout source
         uses: actions/checkout@v4
@@ -27,6 +26,9 @@ jobs:
           distribution: temurin
           java-version: '21'
 
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
       - name: Install dependencies
         run: npm install
 
@@ -36,10 +38,12 @@ jobs:
       - name: Generate Android project
         run: npx cap add android
 
-      - name: Configure Android SDK
+      - name: Upgrade Android Gradle Plugin and SDK
         run: |
-          sed -i 's/compileSdkVersion = .*/compileSdkVersion = 35/' android/variables.gradle
-          sed -i 's/targetSdkVersion = .*/targetSdkVersion = 35/' android/variables.gradle
+          sdkmanager "platforms;android-36" "build-tools;36.0.0"
+          sed -i 's/com.android.tools.build:gradle:8.7.2/com.android.tools.build:gradle:8.9.1/g' android/build.gradle
+          sed -i 's/compileSdkVersion = 35/compileSdkVersion = 36/g' android/variables.gradle
+          sed -i 's/gradle-8.*/gradle-8.11.1-bin.zip/' android/gradle/wrapper/gradle-wrapper.properties
 
       - name: Configure Google login activity
         run: |
