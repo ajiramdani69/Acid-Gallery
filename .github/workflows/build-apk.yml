@@ -3,7 +3,7 @@ name: Build Acid Gallery APK
 on:
   workflow_dispatch:
   push:
-    branches: [ main, master ]
+    branches: [main, master]
 
 permissions:
   contents: read
@@ -11,6 +11,7 @@ permissions:
 jobs:
   build-apk:
     runs-on: ubuntu-latest
+
     steps:
       - name: Checkout source
         uses: actions/checkout@v4
@@ -29,20 +30,24 @@ jobs:
       - name: Install dependencies
         run: npm install
 
-      - name: Bundle native Google login bridge
+      - name: Build Google login bridge
         run: npm run build
 
       - name: Generate Android project
         run: npx cap add android
 
-      - name: Configure native Google login activity
+      - name: Configure Android SDK
+        run: |
+          sed -i 's/compileSdkVersion = .*/compileSdkVersion = 35/' android/variables.gradle
+          sed -i 's/targetSdkVersion = .*/targetSdkVersion = 35/' android/variables.gradle
+
+      - name: Configure Google login activity
         run: |
           mkdir -p android/app/src/main/java/id/acidgallery/app
           cat > android/app/src/main/java/id/acidgallery/app/MainActivity.java <<'EOF'
           package id.acidgallery.app;
 
           import android.content.Intent;
-          import android.util.Log;
           import com.getcapacitor.BridgeActivity;
           import com.getcapacitor.Plugin;
           import com.getcapacitor.PluginHandle;
@@ -56,17 +61,13 @@ jobs:
               super.onActivityResult(requestCode, resultCode, data);
               if (requestCode >= GoogleProvider.REQUEST_AUTHORIZE_GOOGLE_MIN &&
                   requestCode < GoogleProvider.REQUEST_AUTHORIZE_GOOGLE_MAX) {
-                PluginHandle pluginHandle = getBridge().getPlugin("SocialLogin");
-                if (pluginHandle == null) {
-                  Log.i("Google Activity Result", "SocialLogin plugin handle is null");
-                  return;
+                PluginHandle handle = getBridge().getPlugin("SocialLogin");
+                if (handle != null) {
+                  Plugin plugin = handle.getInstance();
+                  if (plugin instanceof SocialLoginPlugin) {
+                    ((SocialLoginPlugin) plugin).handleGoogleLoginIntent(requestCode, data);
+                  }
                 }
-                Plugin plugin = pluginHandle.getInstance();
-                if (!(plugin instanceof SocialLoginPlugin)) {
-                  Log.i("Google Activity Result", "SocialLogin plugin instance is invalid");
-                  return;
-                }
-                ((SocialLoginPlugin) plugin).handleGoogleLoginIntent(requestCode, data);
               }
             }
 
@@ -75,17 +76,12 @@ jobs:
           }
           EOF
 
-      - name: Sync Capacitor plugins
+      - name: Sync Capacitor
         run: npx cap sync android
 
-      - name: Build debug APK
+      - name: Build APK
         working-directory: android
-        run: chmod +x gradlew && ./gradlew assembleDebug
-
-      - name: Show APK signing certificate SHA-1
-        run: |
-          APKSIGNER=$(find "$ANDROID_HOME/build-tools" -name apksigner | sort -V | tail -n 1)
-          "$APKSIGNER" verify --print-certs android/app/build/outputs/apk/debug/app-debug.apk
+        run: chmod +x gradlew && ./gradlew clean assembleDebug
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
