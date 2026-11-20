@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#176b55">
+<title>Acid Gallery</title>
+<link rel="manifest" href="manifest.webmanifest">
+<style>
+:root{--green:#176b55;--mint:#eaf5f0;--ink:#1d2b27;--muted:#71817b;--line:#e4ebe7}
+*{box-sizing:border-box}body{margin:0;background:#f5f8f6;color:var(--ink);font:15px system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
+header{background:linear-gradient(135deg,#176b55,#278b70);color:white;padding:24px 18px 28px;border-radius:0 0 24px 24px}
+.top{max-width:900px;margin:auto}.brand{font-size:24px;font-weight:800;letter-spacing:.2px}.sub{opacity:.88;margin-top:4px;font-size:13px}
+main{max-width:900px;margin:18px auto;padding:0 16px 40px}.drive{background:white;border:1px solid var(--line);border-radius:16px;padding:16px;display:flex;gap:12px;align-items:center;justify-content:space-between;flex-wrap:wrap;box-shadow:0 3px 14px #18382b0a}
+.drive p{margin:4px 0 0;color:var(--muted);font-size:12px}.drive strong{font-size:15px}
+button{border:0;border-radius:12px;padding:11px 15px;font-weight:700;background:var(--green);color:white;cursor:pointer}
+button.secondary{background:var(--mint);color:var(--green)}button:disabled{opacity:.55;cursor:not-allowed}
+h2{font-size:17px;margin:22px 0 12px}
+.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.tile{background:white;border:1px solid var(--line);border-radius:16px;padding:17px;min-height:116px;text-align:left;color:var(--ink);box-shadow:0 3px 14px #18382b08}
+.tile .ico{font-size:25px}.tile b{display:block;margin-top:9px}.tile small{color:var(--muted)}
+.panel{background:white;border:1px solid var(--line);border-radius:16px;padding:16px;margin-top:16px}
+.row{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.note{font-size:12px;color:var(--muted);line-height:1.5}.items{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-top:12px}
+.item{border:1px solid var(--line);border-radius:12px;overflow:hidden;background:#fff}.item img,.item video{width:100%;aspect-ratio:1/1;object-fit:cover;background:#edf2ef}.item div{padding:8px;font-size:12px;overflow-wrap:anywhere}
+input[type=file]{display:none}.empty{padding:20px;text-align:center;color:var(--muted);font-size:13px}
+#calendar{display:grid;grid-template-columns:repeat(7,1fr);gap:5px;margin-top:12px}.day{text-align:center;padding:9px 0;border-radius:9px;background:#f5f8f6;font-size:12px}.day.head{background:var(--mint);font-weight:700;color:var(--green)}.day.today{background:var(--green);color:white;font-weight:800}
+footer{text-align:center;color:var(--muted);font-size:11px;padding:12px}
+@media(min-width:650px){.grid{grid-template-columns:repeat(4,1fr)}.items{grid-template-columns:repeat(4,minmax(0,1fr))}}
+</style>
+</head>
+<body>
+<header><div class="top"><div class="brand">📁 Acid Gallery</div><div class="sub">Album pribadi foto, video, dan file kamu</div></div></header>
+<main>
+<section class="drive">
+ <div><strong>☁️ Google Drive</strong><p id="driveStatus">Belum terhubung. Hubungkan akun Google untuk menyiapkan penyimpanan cloud.</p></div>
+ <button id="connectBtn" onclick="connectDrive()">Hubungkan Google Drive</button>
+</section>
+<h2>Menu utama</h2>
+<div class="grid">
+ <button class="tile" onclick="document.getElementById('photoInput').click()"><span class="ico">🖼️</span><b>Upload Foto</b><small>Pilih foto dari HP</small></button>
+ <button class="tile" onclick="document.getElementById('videoInput').click()"><span class="ico">🎬</span><b>Upload Video</b><small>Pilih video dari HP</small></button>
+ <button class="tile" onclick="document.getElementById('fileInput').click()"><span class="ico">📄</span><b>Upload File</b><small>Pilih dokumen lainnya</small></button>
+ <button class="tile" onclick="showCalendar()"><span class="ico">📅</span><b>Kalender</b><small>Kalender digital 2027 menyusul</small></button>
+</div>
+<input id="photoInput" type="file" accept="image/*" multiple onchange="previewFiles(this,'Foto')">
+<input id="videoInput" type="file" accept="video/*" multiple onchange="previewFiles(this,'Video')">
+<input id="fileInput" type="file" multiple onchange="previewFiles(this,'File')">
+<section class="panel" id="album">
+ <div class="row"><h2 style="margin:0">Album saya</h2><span class="note" id="count">0 item</span></div>
+ <div class="empty" id="empty">Belum ada file dipilih. Tekan Upload Foto atau Upload Video.</div>
+ <div class="items" id="items"></div>
+</section>
+<section class="panel" id="calendarPanel" hidden>
+ <div class="row"><h2 style="margin:0">Kalender</h2><span class="note">Pratinjau kalender</span></div>
+ <p class="note">Kalender Gajah Tunggal 2027 akan ditambahkan setelah desain dan tanggalnya disiapkan.</p>
+ <div id="calendar"></div>
+</section>
+<footer>Versi awal Acid Gallery • File yang dipilih di sini belum diunggah ke Google Drive.</footer>
+</main>
+<script>
+let total=0;
+function previewFiles(input,kind){
+ const files=[...input.files]; if(!files.length)return;
+ const box=document.getElementById('items'); document.getElementById('empty').style.display='none';
+ files.forEach(file=>{
+  const card=document.createElement('div');card.className='item';
+  let media;
+  if(file.type.startsWith('image/')){media=document.createElement('img');media.src=URL.createObjectURL(file)}
+  else if(file.type.startsWith('video/')){media=document.createElement('video');media.src=URL.createObjectURL(file);media.controls=true}
+  else {media=document.createElement('div');media.style.cssText='aspect-ratio:1/1;display:grid;place-items:center;font-size:36px';media.textContent='📄'}
+  const label=document.createElement('div');label.textContent=kind+' • '+file.name;
+  card.append(media,label);box.prepend(card);total++;
+ });
+ document.getElementById('count').textContent=total+' item dipilih';
+ input.value='';
+}
+function connectDrive(){
+ alert('Tahap berikutnya: kita siapkan Google Cloud dan OAuth resmi. Tombol ini belum menghubungkan akun atau mengunggah file.');
+}
+function showCalendar(){
+ const panel=document.getElementById('calendarPanel');panel.hidden=false;
+ const d=document.getElementById('calendar');if(d.childElementCount)return;
+ ['Min','Sen','Sel','Rab','Kam','Jum','Sab'].forEach(x=>{let e=document.createElement('div');e.className='day head';e.textContent=x;d.append(e)});
+ const year=2027,month=0,first=new Date(year,month,1).getDay(),days=new Date(year,month+1,0).getDate();
+ for(let i=0;i<first;i++){let e=document.createElement('div');d.append(e)}
+ for(let n=1;n<=days;n++){let e=document.createElement('div');e.className='day';e.textContent=n;d.append(e)}
+ panel.scrollIntoView({behavior:'smooth'});
+}
+if('serviceWorker' in navigator){window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js').catch(()=>{}))}
+</script>
+</body></html>
