@@ -139,6 +139,7 @@ body.has-custom-bg input[type=text],body.has-custom-bg .notearea{background:rgba
   <div class="small" id="viewerInfo" style="margin-top:10px"></div>
  </div>
 </div>
+<script src="./social-login.js"></script>
 <script>
 
 const CLIENT_ID = "858235621289-jl8plc4o358qpo4nv4qibl1qiue98avj.apps.googleusercontent.com";
@@ -148,18 +149,40 @@ let albums = [];
 const $ = id => document.getElementById(id);
 function setStatus(id,msg,kind=""){ $(id).textContent=msg; $(id).className="status "+kind; }
 function initGoogle(){
+ if(window.acidGalleryNativeGoogle?.isNativeAndroid){
+  $("account").textContent="Masuk dengan akun Google untuk menghubungkan Google Drive.";
+  return;
+ }
  if(!window.google?.accounts?.oauth2){setTimeout(initGoogle,400);return;}
  tokenClient=google.accounts.oauth2.initTokenClient({client_id:CLIENT_ID,scope:SCOPE,callback:async(resp)=>{
   if(resp.error){setStatus("account","Gagal menghubungkan: "+resp.error,"bad");return;}
   accessToken=resp.access_token;
-  $("connection").textContent="Terhubung";
-  $("account").textContent="Google Drive sudah terhubung. Kamu bisa membuat album dan upload file.";
-  $("connectBtn").textContent="Hubungkan ulang";
-  setStatus("albumStatus","Mengambil album..."); await loadAlbums(); await loadFiles();
+  onGoogleConnected();
  }});
 }
+async function onGoogleConnected(){
+ $("connection").textContent="Terhubung";
+ $("account").textContent="Google Drive sudah terhubung. Kamu bisa membuat album dan upload file.";
+ $("connectBtn").textContent="Hubungkan ulang";
+ setStatus("albumStatus","Mengambil album...");
+ await loadAlbums(); await loadFiles();
+}
 window.addEventListener("load",initGoogle);
-function connectGoogle(){
+async function connectGoogle(){
+ if(window.acidGalleryNativeGoogle?.isNativeAndroid){
+  try{
+   $("connectBtn").disabled=true;
+   setStatus("account","Membuka login Google Android...");
+   const result=await window.acidGalleryNativeGoogle.login();
+   accessToken=result.accessToken;
+   await onGoogleConnected();
+  }catch(e){
+   setStatus("account","Login Google gagal: "+(e.message||e),"bad");
+  }finally{
+   $("connectBtn").disabled=false;
+  }
+  return;
+ }
  if(!tokenClient){setStatus("account","Layanan Google belum siap. Tunggu sebentar lalu coba lagi.","bad");initGoogle();return;}
  tokenClient.requestAccessToken({prompt:accessToken?"":"consent"});
 }
