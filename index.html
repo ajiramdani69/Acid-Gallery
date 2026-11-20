@@ -1,0 +1,369 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#101827">
+<title>Acid Gallery</title>
+<script src="https://accounts.google.com/gsi/client" async defer></script>
+<style>
+:root{color-scheme:dark;--bg:#0b1220;--panel:#121d30;--line:#263650;--muted:#9aabc2;--accent:#77e0b5}
+*{box-sizing:border-box}body{margin:0;background:linear-gradient(150deg,#101d32,#09111e 60%);color:#f4f7fb;font:15px system-ui,Arial,sans-serif;min-height:100vh}
+header{padding:22px 18px 14px;max-width:1000px;margin:auto;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.brand{display:flex;align-items:center;gap:11px}.logo{width:43px;height:43px;border-radius:14px;background:linear-gradient(135deg,#76e4b9,#39a8bd);display:grid;place-items:center;color:#09221d;font-size:23px;font-weight:900}
+h1{font-size:22px;margin:0} .sub{color:var(--muted);font-size:12px;margin-top:2px}
+main{max-width:1000px;margin:auto;padding:10px 18px 40px}
+.panel{background:#121d30d9;border:1px solid var(--line);border-radius:18px;padding:17px;margin:12px 0;box-shadow:0 12px 35px #0002}
+.row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}.grow{flex:1}
+button,.btn{border:0;border-radius:11px;padding:11px 15px;background:var(--accent);color:#08251c;font-weight:750;font-size:14px;cursor:pointer}
+button.secondary{background:#263750;color:#eaf2ff;border:1px solid #38506f}button:disabled{opacity:.5;cursor:not-allowed}
+.status{font-size:13px;color:var(--muted);line-height:1.5}.status.good{color:#8ce5bd}.status.bad{color:#ffadad}
+h2{font-size:16px;margin:0 0 12px}.toolbar{display:flex;gap:9px;flex-wrap:wrap;margin-top:12px}
+input[type=file]{display:none}.filelabel{display:inline-block;background:#263750;color:#eaf2ff;border:1px solid #38506f;border-radius:11px;padding:11px 15px;font-weight:700;cursor:pointer}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(145px,1fr));gap:12px;margin-top:14px}
+.item{border:1px solid var(--line);border-radius:13px;overflow:hidden;background:#0d1727;min-width:0}
+.preview{height:120px;background:#17263d;display:grid;place-items:center;color:#9aabc2;font-size:35px;overflow:hidden}
+.preview img,.preview video{width:100%;height:100%;object-fit:cover}
+.itemname{padding:9px;font-size:12px;overflow-wrap:anywhere}.empty{color:var(--muted);padding:18px 0;font-size:13px}
+input[type=text]{background:#0b1525;border:1px solid var(--line);color:white;border-radius:10px;padding:11px;min-width:0;flex:1}
+.small{font-size:11px;color:var(--muted);line-height:1.5}.pill{padding:5px 9px;border-radius:20px;background:#1c3045;color:#a8f0d1;font-size:11px}
+@media(max-width:500px){header{padding-top:17px}.panel{padding:14px}.grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+
+.modal{position:fixed;inset:0;background:#030812eF;display:none;align-items:center;justify-content:center;padding:18px;z-index:20}
+.modal.show{display:flex}.modalbox{width:min(900px,100%);max-height:90vh;overflow:auto;background:#121d30;border:1px solid #38506f;border-radius:18px;padding:15px}
+.modalhead{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:12px}
+.viewer{display:grid;place-items:center;min-height:180px;background:#08111e;border-radius:12px;overflow:hidden}
+.viewer img,.viewer video{max-width:100%;max-height:65vh;object-fit:contain}
+.actions{display:flex;gap:6px;flex-wrap:wrap;padding:8px}
+.actions button{padding:8px 10px;font-size:12px}
+button.danger{background:#542b39;color:#ffe7ec;border:1px solid #874257}
+
+</head>
+<body>
+<header>
+ <div class="brand"><div class="logo">A</div><div><h1>Acid Gallery</h1><div class="sub">Simpan dan lihat file pribadi di Google Drive</div></div></div>
+ <div class="row">
+  <span class="pill" id="connection">Belum terhubung</span>
+  <label class="filelabel" for="bgPicker">Ganti Background</label>
+  <input id="bgPicker" type="file" accept="image/*">
+  <button class="secondary" id="resetBgBtn" onclick="resetBackground()">Reset</button>
+ </div>
+</header>
+<main>
+ <section class="panel">
+  <h2>Hubungkan Google Drive</h2>
+  <div class="row"><div class="grow status" id="account">Masuk dengan akun Google untuk mulai menggunakan penyimpanan.</div><button id="connectBtn" onclick="connectGoogle()">Hubungkan Google</button></div>
+  <p class="small">Aplikasi meminta izin untuk mengelola file yang dibuat atau dibuka melalui Acid Gallery. File tetap tersimpan di akun Google Drive kamu.</p>
+ </section>
+ <section class="panel">
+  <h2>Album / Folder</h2>
+  <div class="row"><input id="folderName" type="text" placeholder="Nama album baru"><button onclick="createAlbum()">Buat album</button></div>
+  <div class="toolbar"><button class="secondary" onclick="loadAlbums()">Muat ulang album</button><span class="status" id="albumStatus">Hubungkan Google Drive dahulu.</span></div>
+  <div id="albums" class="grid"></div>
+ </section>
+
+ <section class="panel" id="calendarPanel">
+  <div class="calendar-top">
+   <h2 style="margin:0">Kalender & Catatan</h2>
+   <div class="row">
+    <button class="secondary" onclick="changeCalendar(-1)">‹</button>
+    <strong id="calendarMonth" style="min-width:125px;text-align:center">Bulan Tahun</strong>
+    <button class="secondary" onclick="changeCalendar(1)">›</button>
+   </div>
+  </div>
+  <div class="calendar-grid" id="calendarGrid"></div>
+  <div style="margin-top:15px">
+   <div class="row" style="justify-content:space-between;margin-bottom:8px">
+    <strong id="selectedDateLabel">Pilih tanggal</strong>
+    <span class="small">Catatan tersimpan di perangkat ini</span>
+   </div>
+   <textarea class="notearea" id="calendarNote" placeholder="Tulis catatan atau jadwal untuk tanggal ini..."></textarea>
+   <div class="toolbar">
+    <button onclick="saveCalendarNote()">Simpan catatan</button>
+    <button class="secondary" onclick="clearCalendarNote()">Hapus catatan</button>
+   </div>
+   <p class="small" id="calendarStatus">Kalender dasar Acid Gallery. Jadwal resmi Gajah Tunggal dapat ditambahkan nanti setelah tersedia.</p>
+  </div>
+ </section>
+
+ <section class="panel">
+  <h2>Upload file</h2>
+  <div class="row"><label class="filelabel" for="filePicker">Pilih foto / video / file</label><input id="filePicker" type="file" multiple><span id="picked" class="status">Belum ada file dipilih</span></div>
+  <div class="toolbar"><button onclick="uploadSelected()">Upload ke Drive</button><button class="secondary" onclick="loadFiles()">Muat ulang file</button></div>
+  <div class="status" id="uploadStatus" style="margin-top:10px">Pilih album terlebih dahulu jika ingin menyimpan file ke folder tertentu.</div>
+ </section>
+ <section class="panel">
+  <div class="row"><h2 class="grow">Isi album</h2><span class="pill" id="currentAlbum">Semua file aplikasi</span></div>
+  <div id="files" class="grid"><div class="empty">Hubungkan Google Drive untuk melihat file.</div></div>
+ </section>
+ <p class="small">Catatan: kapasitas mengikuti ruang Google Drive akun kamu. Paket gratis Google menyediakan ruang terbatas yang dipakai bersama Gmail dan Google Photos.</p>
+
+</main>
+<div class="modal" id="viewerModal" onclick="if(event.target===this)closeViewer()">
+ <div class="modalbox">
+  <div class="modalhead"><strong id="viewerTitle">Pratinjau file</strong><button class="secondary" onclick="closeViewer()">Tutup ✕</button></div>
+  <div class="viewer" id="viewerContent">Memuat...</div>
+  <div class="small" id="viewerInfo" style="margin-top:10px"></div>
+ </div>
+</div>
+<script>
+
+const CLIENT_ID = "858235621289-jl8plc4o358qpo4nv4qibl1qiue98avj.apps.googleusercontent.com";
+const SCOPE = "https://www.googleapis.com/auth/drive.file";
+let tokenClient, accessToken = null, selectedFolder = null, selectedFiles = [];
+let albums = [];
+const $ = id => document.getElementById(id);
+function setStatus(id,msg,kind=""){ $(id).textContent=msg; $(id).className="status "+kind; }
+function initGoogle(){
+ if(!window.google?.accounts?.oauth2){setTimeout(initGoogle,400);return;}
+ tokenClient=google.accounts.oauth2.initTokenClient({client_id:CLIENT_ID,scope:SCOPE,callback:async(resp)=>{
+  if(resp.error){setStatus("account","Gagal menghubungkan: "+resp.error,"bad");return;}
+  accessToken=resp.access_token;
+  $("connection").textContent="Terhubung";
+  $("account").textContent="Google Drive sudah terhubung. Kamu bisa membuat album dan upload file.";
+  $("connectBtn").textContent="Hubungkan ulang";
+  setStatus("albumStatus","Mengambil album..."); await loadAlbums(); await loadFiles();
+ }});
+}
+window.addEventListener("load",initGoogle);
+function connectGoogle(){
+ if(!tokenClient){setStatus("account","Layanan Google belum siap. Tunggu sebentar lalu coba lagi.","bad");initGoogle();return;}
+ tokenClient.requestAccessToken({prompt:accessToken?"":"consent"});
+}
+async function api(path,options={}){
+ if(!accessToken) throw new Error("Hubungkan Google Drive dahulu.");
+ const headers=options.headers||{}; headers.Authorization="Bearer "+accessToken;
+ const res=await fetch("https://www.googleapis.com/drive/v3/"+path,{...options,headers});
+ if(!res.ok){let msg=await res.text();throw new Error("Google Drive ("+res.status+"): "+msg.slice(0,260));}
+ if(res.status===204)return {};
+ return res.json();
+}
+async function loadAlbums(){
+ if(!accessToken)return;
+ try{
+  const data=await api("files?q=mimeType%3D'application%2Fvnd.google-apps.folder'%20and%20trashed%3Dfalse&fields=files(id,name,mimeType)&pageSize=100&orderBy=name");
+  albums=data.files||[]; const box=$("albums");box.innerHTML="";
+  if(!albums.length)box.innerHTML='<div class="empty">Belum ada album. Buat album pertama kamu.</div>';
+  albums.forEach(f=>{const b=document.createElement("button");b.className="secondary";b.textContent="📁 "+f.name;b.onclick=()=>{selectedFolder=f.id;$("currentAlbum").textContent=f.name;loadFiles();};box.appendChild(b);});
+  setStatus("albumStatus",albums.length+" album ditemukan.","good");
+ }catch(e){setStatus("albumStatus",e.message,"bad");}
+}
+async function createAlbum(){
+ const name=$("folderName").value.trim();if(!name){setStatus("albumStatus","Isi nama album dahulu.","bad");return;}
+ try{
+  await api("files",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({name,mimeType:"application/vnd.google-apps.folder"})});
+  $("folderName").value="";setStatus("albumStatus","Album berhasil dibuat.","good");await loadAlbums();
+ }catch(e){setStatus("albumStatus",e.message,"bad");}
+}
+$("filePicker").addEventListener("change",e=>{selectedFiles=[...e.target.files];$("picked").textContent=selectedFiles.length?selectedFiles.length+" file dipilih":"Belum ada file dipilih";});
+async function uploadOne(file){
+ const metadata={name:file.name,mimeType:file.type||"application/octet-stream"};
+ if(selectedFolder)metadata.parents=[selectedFolder];
+ const boundary="acid_gallery_"+Math.random().toString(16).slice(2);
+ const body=new Blob(["--"+boundary+"\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n",JSON.stringify(metadata),"\r\n--"+boundary+"\r\nContent-Type: "+(file.type||"application/octet-stream")+"\r\n\r\n",file,"\r\n--"+boundary+"--"]);
+ const res=await fetch("https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,name,mimeType,webViewLink",{method:"POST",headers:{Authorization:"Bearer "+accessToken,"Content-Type":"multipart/related; boundary="+boundary},body});
+ if(!res.ok)throw new Error(file.name+": "+(await res.text()).slice(0,200));
+ return res.json();
+}
+async function uploadSelected(){
+ if(!accessToken){setStatus("uploadStatus","Hubungkan Google Drive dahulu.","bad");return;}
+ if(!selectedFiles.length){setStatus("uploadStatus","Pilih file dahulu.","bad");return;}
+ let done=0;setStatus("uploadStatus","Mulai upload...");
+ for(const f of selectedFiles){try{await uploadOne(f);done++;setStatus("uploadStatus","Mengupload... "+done+"/"+selectedFiles.length);}catch(e){setStatus("uploadStatus",e.message,"bad");return;}}
+ selectedFiles=[];$("filePicker").value="";$("picked").textContent="Upload selesai";
+ setStatus("uploadStatus",done+" file berhasil diupload ke Google Drive.","good");await loadFiles();
+}
+
+async function loadFiles(){
+ if(!accessToken)return;
+ try{
+  const q=selectedFolder?"'"+selectedFolder+"' in parents and trashed=false":"trashed=false";
+  const data=await api("files?q="+encodeURIComponent(q)+"&fields=files(id,name,mimeType,size,thumbnailLink,webViewLink,modifiedTime)&pageSize=100&orderBy=createdTime desc");
+  const box=$("files");box.innerHTML="";
+  const items=(data.files||[]).filter(f=>f.mimeType!=="application/vnd.google-apps.folder");
+  if(!items.length){box.innerHTML='<div class="empty">Belum ada file di sini.</div>';return;}
+  items.forEach(f=>{
+   const card=document.createElement("div");card.className="item";
+   const prev=document.createElement("div");prev.className="preview";
+   if(f.mimeType?.startsWith("image/")&&f.thumbnailLink){
+    const img=document.createElement("img");img.src=f.thumbnailLink;img.alt=f.name;prev.appendChild(img);
+   } else prev.textContent=f.mimeType?.startsWith("video/")?"▶️":f.mimeType?.includes("pdf")?"📄":"📁";
+   const name=document.createElement("div");name.className="itemname";name.textContent=f.name;
+   const actions=document.createElement("div");actions.className="actions";
+   const open=document.createElement("button");open.className="secondary";open.textContent="Lihat";open.onclick=()=>previewFile(f);
+   const rename=document.createElement("button");rename.className="secondary";rename.textContent="Ganti nama";rename.onclick=()=>renameFile(f);
+   const del=document.createElement("button");del.className="danger";del.textContent="Hapus";del.onclick=()=>deleteFile(f);
+   actions.append(open,rename,del);card.append(prev,name,actions);box.appendChild(card);
+  });
+ }catch(e){$("files").innerHTML="";const d=document.createElement("div");d.className="empty";d.textContent=e.message; $("files").appendChild(d);}
+}
+async function previewFile(f){
+ $("viewerModal").classList.add("show");$("viewerTitle").textContent=f.name;
+ $("viewerContent").textContent="Memuat pratinjau...";
+ $("viewerInfo").textContent=f.mimeType||"File";
+ try{
+  if(f.mimeType?.startsWith("image/")||f.mimeType?.startsWith("video/")){
+   const res=await fetch("https://www.googleapis.com/drive/v3/files/"+encodeURIComponent(f.id)+"?alt=media",{headers:{Authorization:"Bearer "+accessToken}});
+   if(!res.ok)throw new Error("Tidak bisa mengambil file ("+res.status+").");
+   const blob=await res.blob();const url=URL.createObjectURL(blob);
+   $("viewerContent").innerHTML="";
+   if(f.mimeType.startsWith("image/")){const img=document.createElement("img");img.src=url;img.alt=f.name;$("viewerContent").appendChild(img);}
+   else {const video=document.createElement("video");video.src=url;video.controls=true;video.autoplay=true;$("viewerContent").appendChild(video);}
+   $("viewerInfo").textContent="Pratinjau dari Google Drive. Tutup jendela setelah selesai.";
+  } else {
+   $("viewerContent").innerHTML="";
+   const msg=document.createElement("div");msg.className="empty";msg.textContent="Jenis file ini dibuka melalui Google Drive.";
+   const link=document.createElement("button");link.textContent="Buka di Google Drive";link.onclick=()=>window.open("https://drive.google.com/file/d/"+encodeURIComponent(f.id)+"/view","_blank");
+   $("viewerContent").append(msg,link);
+  }
+ }catch(e){$("viewerContent").textContent=e.message;}
+}
+function closeViewer(){
+ const v=$("viewerContent").querySelector("video");
+ if(v){v.pause();v.removeAttribute("src");}
+ $("viewerContent").innerHTML="";$("viewerModal").classList.remove("show");
+}
+async function renameFile(f){
+ const next=prompt("Masukkan nama baru:",f.name);if(next===null)return;
+ const name=next.trim();if(!name||name===f.name)return;
+ try{
+  const res=await fetch("https://www.googleapis.com/drive/v3/files/"+encodeURIComponent(f.id),{method:"PATCH",headers:{Authorization:"Bearer "+accessToken,"Content-Type":"application/json"},body:JSON.stringify({name})});
+  if(!res.ok)throw new Error((await res.text()).slice(0,220));
+  setStatus("uploadStatus","Nama file berhasil diganti.","good");await loadFiles();
+ }catch(e){setStatus("uploadStatus","Gagal mengganti nama: "+e.message,"bad");}
+}
+async function deleteFile(f){
+ if(!confirm('Hapus "'+f.name+'" dari Google Drive?'))return;
+ try{
+  const res=await fetch("https://www.googleapis.com/drive/v3/files/"+encodeURIComponent(f.id),{method:"DELETE",headers:{Authorization:"Bearer "+accessToken}});
+  if(!res.ok)throw new Error((await res.text()).slice(0,220));
+  setStatus("uploadStatus","File berhasil dihapus.","good");await loadFiles();
+ }catch(e){setStatus("uploadStatus","Gagal menghapus file: "+e.message,"bad");}
+}
+
+
+// Kalender dasar Acid Gallery; catatan disimpan pada browser/perangkat ini.
+let calendarCursor = new Date();
+calendarCursor = new Date(calendarCursor.getFullYear(), calendarCursor.getMonth(), 1);
+let selectedCalendarDate = new Date();
+const calendarNotesKey = "acidGalleryCalendarNotesV1";
+function dateKey(d){
+ return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");
+}
+function readCalendarNotes(){
+ try{return JSON.parse(localStorage.getItem(calendarNotesKey)||"{}");}catch(e){return {};}
+}
+function renderCalendar(){
+ const year=calendarCursor.getFullYear(), month=calendarCursor.getMonth();
+ $("calendarMonth").textContent=new Intl.DateTimeFormat("id-ID",{month:"long",year:"numeric"}).format(calendarCursor);
+ const grid=$("calendarGrid");grid.innerHTML="";
+ ["Min","Sen","Sel","Rab","Kam","Jum","Sab"].forEach(day=>{
+  const h=document.createElement("div");h.className="calendar-dayhead";h.textContent=day;grid.appendChild(h);
+ });
+ const firstDay=new Date(year,month,1).getDay();
+ const daysInMonth=new Date(year,month+1,0).getDate();
+ const prevMonthDays=new Date(year,month,0).getDate();
+ const notes=readCalendarNotes();
+ for(let i=0;i<42;i++){
+  let dayNum, date, outside=false;
+  if(i<firstDay){dayNum=prevMonthDays-firstDay+i+1;date=new Date(year,month-1,dayNum);outside=true;}
+  else if(i>=firstDay+daysInMonth){dayNum=i-firstDay-daysInMonth+1;date=new Date(year,month+1,dayNum);outside=true;}
+  else {dayNum=i-firstDay+1;date=new Date(year,month,dayNum);}
+  const key=dateKey(date), b=document.createElement("button");
+  b.className="calendar-date"+(outside?" outside":"")+(key===dateKey(selectedCalendarDate)?" selected":"")+(key===dateKey(new Date())?" today":"")+(notes[key]?" hasnote":"");
+  b.textContent=dayNum;b.title=notes[key]?"Ada catatan":"";
+  b.onclick=()=>{selectedCalendarDate=date;renderCalendar();loadCalendarNote();};
+  grid.appendChild(b);
+ }
+}
+function changeCalendar(delta){
+ calendarCursor=new Date(calendarCursor.getFullYear(),calendarCursor.getMonth()+delta,1);
+ selectedCalendarDate=new Date(calendarCursor.getFullYear(),calendarCursor.getMonth(),1);
+ renderCalendar();loadCalendarNote();
+}
+function loadCalendarNote(){
+ const key=dateKey(selectedCalendarDate);
+ $("selectedDateLabel").textContent=new Intl.DateTimeFormat("id-ID",{dateStyle:"full"}).format(selectedCalendarDate);
+ $("calendarNote").value=readCalendarNotes()[key]||"";
+ $("calendarStatus").textContent="Catatan untuk tanggal ini disimpan di browser/perangkat yang sedang digunakan.";
+}
+function saveCalendarNote(){
+ const notes=readCalendarNotes(), key=dateKey(selectedCalendarDate), value=$("calendarNote").value.trim();
+ if(value)notes[key]=value;else delete notes[key];
+ localStorage.setItem(calendarNotesKey,JSON.stringify(notes));
+ renderCalendar();loadCalendarNote();
+ $("calendarStatus").textContent="Catatan berhasil disimpan di perangkat ini.";
+}
+function clearCalendarNote(){
+ const notes=readCalendarNotes();delete notes[dateKey(selectedCalendarDate)];
+ localStorage.setItem(calendarNotesKey,JSON.stringify(notes));
+ $("calendarNote").value="";renderCalendar();
+ $("calendarStatus").textContent="Catatan tanggal ini dihapus.";
+}
+renderCalendar();loadCalendarNote();
+
+
+// Background foto pribadi disimpan lokal di browser melalui IndexedDB.
+const BG_DB_NAME="AcidGalleryLocalSettings";
+const BG_STORE="settings";
+function openBgDb(){
+ return new Promise((resolve,reject)=>{
+  const req=indexedDB.open(BG_DB_NAME,1);
+  req.onupgradeneeded=()=>{if(!req.result.objectStoreNames.contains(BG_STORE))req.result.createObjectStore(BG_STORE);};
+  req.onsuccess=()=>resolve(req.result);req.onerror=()=>reject(req.error);
+ });
+}
+async function saveBgBlob(blob){
+ const db=await openBgDb();
+ return new Promise((resolve,reject)=>{
+  const tx=db.transaction(BG_STORE,"readwrite");tx.objectStore(BG_STORE).put(blob,"background");
+  tx.oncomplete=()=>{db.close();resolve();};tx.onerror=()=>{db.close();reject(tx.error);};
+ });
+}
+async function getBgBlob(){
+ const db=await openBgDb();
+ return new Promise((resolve,reject)=>{
+  const tx=db.transaction(BG_STORE,"readonly"),req=tx.objectStore(BG_STORE).get("background");
+  req.onsuccess=()=>{const result=req.result||null;db.close();resolve(result);};
+  req.onerror=()=>{db.close();reject(req.error);};
+ });
+}
+async function removeBgBlob(){
+ const db=await openBgDb();
+ return new Promise((resolve,reject)=>{
+  const tx=db.transaction(BG_STORE,"readwrite");tx.objectStore(BG_STORE).delete("background");
+  tx.oncomplete=()=>{db.close();resolve();};tx.onerror=()=>{db.close();reject(tx.error);};
+ });
+}
+let acidBgObjectUrl=null;
+async function applySavedBackground(){
+ try{
+  const blob=await getBgBlob();
+  if(acidBgObjectUrl){URL.revokeObjectURL(acidBgObjectUrl);acidBgObjectUrl=null;}
+  if(blob){
+   acidBgObjectUrl=URL.createObjectURL(blob);
+   document.body.style.setProperty("--acid-custom-bg",'url("'+acidBgObjectUrl+'")');
+   document.body.classList.add("has-custom-bg");
+  }else{
+   document.body.classList.remove("has-custom-bg");
+   document.body.style.removeProperty("--acid-custom-bg");
+  }
+ }catch(e){console.warn("Tidak dapat memuat background lokal",e);}
+}
+$("bgPicker").addEventListener("change",async e=>{
+ const file=e.target.files&&e.target.files[0];if(!file)return;
+ if(!file.type.startsWith("image/")){alert("Pilih file gambar/foto ya.");e.target.value="";return;}
+ try{
+  await saveBgBlob(file);await applySavedBackground();
+  alert("Background berhasil diganti!");
+ }catch(err){alert("Foto tidak bisa disimpan di browser ini. Coba pilih foto yang ukurannya lebih kecil.");}
+ e.target.value="";
+});
+async function resetBackground(){
+ try{await removeBgBlob();await applySavedBackground();alert("Background kembali seperti semula.");}
+ catch(e){alert("Background belum bisa direset: "+e.message);}
+}
+applySavedBackground();
+
+</script>
+</body></html>
