@@ -1,1 +1,6 @@
-
+{
+  "appId": "id.acidgallery.app",
+  "appName": "Acid Gallery",
+  "webDir": "www",
+  "bundledWebRuntime": false
+}
